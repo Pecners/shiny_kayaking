@@ -5,7 +5,7 @@ library(jsonlite)
 library(lubridate)
 library(glue)
 library(showtext)
-source("../R/expand_period.R")
+source("expand_period.R")
 
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
@@ -60,6 +60,7 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
+      htmlOutput(outputId = "error"),
       plotOutput(outputId = "windPlot"),
       plotOutput(outputId = "wavePlot")
       
@@ -77,75 +78,79 @@ server <- function(input, output) {
   x <- prettify(rawToChar(req$content)) %>%
     fromJSON()
   
-  waves <- x$properties$waveHeight$values %>%
-    mutate(value = value * 3.281)
-  
-  temp <- x$properties$temperature$values %>%
-    mutate(value = value * 1.8 + 32)
-  
-  wind <- x$properties$temperature$values %>%
-    mutate(value / 1.609)
-  
-  green <- "#2dc937"
-  yellow <- "#efb700"
-  red <- "#CC3232"
-  
-  font_add_google("Merienda", "m")
-  showtext_auto()
-  
-  
-  output$windPlot <- renderPlot({
-    wave_max <- input$waves
-    waves_df <- expand_period(waves)
+  if (x$status != 200) {
+    output$error <- renderText({
+      paste("Oops, there was an error!<br><br><strong>Details</strong>: ",
+             x$detail)
+    })
+  } else {
+    waves <- x$properties$waveHeight$values %>%
+      mutate(value = value * 3.281)
     
-    waves_df %>%
-      mutate(gonogo = case_when(value >= wave_max ~ red,
-                                value >= wave_max * .6 ~ yellow,
-                                TRUE ~ green)) %>%
-      ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
-      geom_col() +
-      scale_fill_identity() +
-      scale_color_identity() +
-      scale_y_continuous(breaks = c(1:floor(max(waves_df$value))),
-                         labels = c(1:(floor(max(waves_df$value)) - 1),
-                                    paste0(floor(max(waves_df$value)), " ft"))) +
-      scale_x_datetime(expand = c(0, 0)) +
-      theme_minimal() +
-      theme(text = element_text(family = "m"),
-            panel.grid.minor = element_blank(),
-            panel.grid.major.x = element_blank(),
-            plot.title.position = "plot") +
-      labs(x = "", y = "", 
-           title = "Wave Height Forecast")
-  })
-  
-  output$wavePlot <- renderPlot({
-    wind_max <- input$wind
-    wind_df <- expand_period(wind)
+    temp <- x$properties$temperature$values %>%
+      mutate(value = value * 1.8 + 32)
     
-    wind_df %>%
-      mutate(value = value / 1.609,
-             gonogo = case_when(value >= wind_max ~ red,
-                                value >= wind_max * .6 ~ yellow,
-                                TRUE ~ green)) %>%
-      ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
-      geom_col() +
-      scale_fill_identity() +
-      scale_color_identity() +
-      scale_y_continuous(breaks = c(1:floor(max(wind_df$value))),
-                         labels = c(1:(floor(max(wind_df$value)) - 1),
-                                    paste0(floor(max(wind_df$value)), " mph"))) +
-      scale_x_datetime(expand = c(0, 0)) +
-      theme_minimal() +
-      theme(text = element_text(family = "m"),
-            panel.grid.minor = element_blank(),
-            panel.grid.major.x = element_blank(),
-            plot.title.position = "plot") +
-      labs(x = "", y = "", 
-           title = "Wind Speed Forecast")
-  })
-  
-
+    wind <- x$properties$temperature$values %>%
+      mutate(value / 1.609)
+    
+    green <- "#2dc937"
+    yellow <- "#efb700"
+    red <- "#CC3232"
+    
+    font_add_google("Merienda", "m")
+    showtext_auto()
+    
+    
+    output$windPlot <- renderPlot({
+      wave_max <- input$waves
+      waves_df <- expand_period(waves)
+      
+      waves_df %>%
+        mutate(gonogo = case_when(value >= wave_max ~ red,
+                                  value >= wave_max * .6 ~ yellow,
+                                  TRUE ~ green)) %>%
+        ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
+        geom_col() +
+        scale_fill_identity() +
+        scale_color_identity() +
+        scale_y_continuous(breaks = c(1:floor(max(waves_df$value))),
+                           labels = c(1:(floor(max(waves_df$value)) - 1),
+                                      paste0(floor(max(waves_df$value)), " ft"))) +
+        scale_x_datetime(expand = c(0, 0)) +
+        theme_minimal() +
+        theme(text = element_text(family = "m"),
+              panel.grid.minor = element_blank(),
+              panel.grid.major.x = element_blank(),
+              plot.title.position = "plot") +
+        labs(x = "", y = "", 
+             title = "Wave Height Forecast")
+    })
+    
+    output$wavePlot <- renderPlot({
+      wind_max <- input$wind
+      wind_df <- expand_period(wind)
+      
+      wind_df %>%
+        mutate(gonogo = case_when(value >= wind_max ~ red,
+                                  value >= wind_max * .6 ~ yellow,
+                                  TRUE ~ green)) %>%
+        ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
+        geom_col() +
+        scale_fill_identity() +
+        scale_color_identity() +
+        scale_y_continuous(breaks = c(1:floor(max(wind_df$value))),
+                           labels = c(1:(floor(max(wind_df$value)) - 1),
+                                      paste0(floor(max(wind_df$value)), " mph"))) +
+        scale_x_datetime(expand = c(0, 0)) +
+        theme_minimal() +
+        theme(text = element_text(family = "m"),
+              panel.grid.minor = element_blank(),
+              panel.grid.major.x = element_blank(),
+              plot.title.position = "plot") +
+        labs(x = "", y = "", 
+             title = "Wind Speed Forecast")
+    })
+  }
   
 }
 
