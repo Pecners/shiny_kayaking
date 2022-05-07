@@ -13,8 +13,19 @@ ui <- fluidPage(
   tags$head(
     tags$style(HTML("
       @import url('https://fonts.googleapis.com/css2?family=Merienda&display=swap');
+          h1 {
+            margin-bottom: 30px;
+          }
           body {
             font-family: 'Merienda';
+          }
+          .irs--shiny .irs-bar {
+            border-top: 1px solid #CB4335;
+            border-bottom: 1px solid #CB4335;
+            background: #CB4335;
+          }
+          .irs--shiny .irs-single {
+            background-color: #CB4335;
           }
                     ")
                )
@@ -29,9 +40,8 @@ ui <- fluidPage(
     
     # Sidebar panel for inputs ----
     sidebarPanel(
-      
       # Input: Slider for the number of bins ----
-      sliderInput(inputId = "waves",
+      sliderInput(inputId = "waves", 
                   label = "Set your wave height limit (ft):",
                   min = 1,
                   max = 10,
@@ -48,7 +58,7 @@ ui <- fluidPage(
                       "where Spencer most often launches his kayak.")
                  ),
                tags$a(href="https://api.weather.gov/gridpoints/MKX/90,62", 
-                      "https://api.weather.gov/gridpoints/MKX/90,62")
+                      "https://api.weather.gov/gridpoints/MKX/90,62", target="_blank")
       ),
       h2("Color Coding", style='text-align:center;'),
       h3("Good conditions", style='background:#2dc937;color:white;text-align:center;padding:5px;'),
@@ -61,8 +71,7 @@ ui <- fluidPage(
     # Main panel for displaying outputs ----
     mainPanel(
       htmlOutput(outputId = "error"),
-      plotOutput(outputId = "windPlot"),
-      plotOutput(outputId = "wavePlot")
+      plotOutput(outputId = "forecastPlot")
       
     )
   )
@@ -78,11 +87,14 @@ server <- function(input, output) {
   x <- prettify(rawToChar(req$content)) %>%
     fromJSON()
   
-  if (x$status != 200) {
+  # Handle errors
+  
+  if (req$status_code != 200) {
     output$error <- renderText({
       paste("Oops, there was an error!<br><br><strong>Details</strong>: ",
              x$detail)
     })
+    
   } else {
     waves <- x$properties$waveHeight$values %>%
       mutate(value = value * 3.281)
@@ -93,6 +105,10 @@ server <- function(input, output) {
     wind <- x$properties$temperature$values %>%
       mutate(value / 1.609)
     
+    waves_df <- expand_period(waves)
+    wind_df <- expand_period(wind)
+    
+    
     green <- "#2dc937"
     yellow <- "#efb700"
     red <- "#CC3232"
@@ -101,54 +117,39 @@ server <- function(input, output) {
     showtext_auto()
     
     
-    output$windPlot <- renderPlot({
+    output$forecastPlot <- renderPlot({
       wave_max <- input$waves
-      waves_df <- expand_period(waves)
-      
-      waves_df %>%
-        mutate(gonogo = case_when(value >= wave_max ~ red,
-                                  value >= wave_max * .6 ~ yellow,
-                                  TRUE ~ green)) %>%
-        ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
-        geom_col() +
-        scale_fill_identity() +
-        scale_color_identity() +
-        scale_y_continuous(breaks = c(1:floor(max(waves_df$value))),
-                           labels = c(1:(floor(max(waves_df$value)) - 1),
-                                      paste0(floor(max(waves_df$value)), " ft"))) +
-        scale_x_datetime(expand = c(0, 0)) +
-        theme_minimal() +
-        theme(text = element_text(family = "m"),
-              panel.grid.minor = element_blank(),
-              panel.grid.major.x = element_blank(),
-              plot.title.position = "plot") +
-        labs(x = "", y = "", 
-             title = "Wave Height Forecast")
-    })
-    
-    output$wavePlot <- renderPlot({
       wind_max <- input$wind
-      wind_df <- expand_period(wind)
       
-      wind_df %>%
-        mutate(gonogo = case_when(value >= wind_max ~ red,
-                                  value >= wind_max * .6 ~ yellow,
-                                  TRUE ~ green)) %>%
-        ggplot(aes(hours, value, fill = gonogo, color = gonogo)) +
-        geom_col() +
+      both <- bind_rows(wind_df %>% mutate(group = "wind"), 
+                        waves_df %>% mutate(group = "wave")) %>%
+        pivot_wider(names_from = group, values_from = value) %>%
+        mutate(wind_score = case_when(wind >= wind_max ~ 2,
+                                      wind >= wind_max * .6 ~ 1,
+                                      TRUE ~ 0),
+               wave_score = case_when(wave >= wave_max ~ 2,
+                                      wave >= wave_max * .6 ~ 1,
+                                      TRUE ~ 0),
+               gonogo = case_when(wind_score == 2 ~ red,
+                                  wave_score == 2 ~ red,
+                                  wind_score == 0 ~ green,
+                                  TRUE ~ yellow))
+      both %>%
+        ggplot(aes(date(hours), hour(hours), fill = gonogo)) +
+        geom_tile(color = "white") +
         scale_fill_identity() +
-        scale_color_identity() +
-        scale_y_continuous(breaks = c(1:floor(max(wind_df$value))),
-                           labels = c(1:(floor(max(wind_df$value)) - 1),
-                                      paste0(floor(max(wind_df$value)), " mph"))) +
-        scale_x_datetime(expand = c(0, 0)) +
+        scale_y_reverse(breaks = seq(from = 0, to = 20, by = 4),
+                        labels = c("12 am", "4 am", "8 am",
+                                   "12 pm", "4 pm", "8 pm")) +
+        scale_x_date(date_breaks = "days", 
+                     labels = function(x) format.Date(x, "%a,\n%b %d")) +
         theme_minimal() +
-        theme(text = element_text(family = "m"),
+        theme(text = element_text(family = "m", size = 20),
               panel.grid.minor = element_blank(),
               panel.grid.major.x = element_blank(),
               plot.title.position = "plot") +
         labs(x = "", y = "", 
-             title = "Wind Speed Forecast")
+             title = "Wind Speed + Wave Height Forecast")
     })
   }
   
