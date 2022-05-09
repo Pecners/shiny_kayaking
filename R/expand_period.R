@@ -23,7 +23,7 @@ expand_period <- function(df) {
     
     return(
       tibble(
-        hours = hours,
+        hours = ymd_hms(hours),
         value = t$value
       )
     )

@@ -70,9 +70,16 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
-      htmlOutput(outputId = "error"),
-      plotOutput(outputId = "forecastPlot")
-      
+      tabsetPanel(
+        tabPanel("Overall",
+          htmlOutput(outputId = "error"),
+          plotOutput(outputId = "forecastPlot")
+        ),
+        tabPanel("Details",
+                 plotOutput(outputId = "detailsWaves", height = "300px"),
+                 plotOutput(outputId = "detailsWind", height = "300px")
+                 )
+      )
     )
   )
 )
@@ -116,8 +123,10 @@ server <- function(input, output) {
     font_add_google("Merienda", "m")
     showtext_auto()
     
-    
+    # Tab 1
     output$forecastPlot <- renderPlot({
+      waves_df <- expand_period(waves)
+      wind_df <- expand_period(wind)
       wave_max <- input$waves
       wind_max <- input$wind
       
@@ -147,10 +156,76 @@ server <- function(input, output) {
         theme(text = element_text(family = "m", size = 20),
               panel.grid.minor = element_blank(),
               panel.grid.major.x = element_blank(),
-              plot.title.position = "plot") +
+              plot.title.position = "plot",
+              plot.margin = margin(t = 20)) +
         labs(x = "", y = "", 
              title = "Wind Speed + Wave Height Forecast")
     })
+    
+    # Tab 2
+    
+    output$detailsWaves <- renderPlot({
+      waves_df <- expand_period(waves)
+      wave_max <- input$waves
+      wave_mid <- wave_max * .6
+      m <- max(waves_df$value) + 1
+      
+      waves_df %>%
+        ggplot(aes(hours, value)) +
+        annotate(geom = "rect", ymin = wave_max, ymax = m,
+                 xmin = min(waves_df$hours), xmax = max(waves_df$hours),
+                 fill = alpha(red, .75)) +
+        annotate(geom = "rect", ymin = wave_mid, ymax = wave_max,
+                 xmin = min(waves_df$hours), xmax = max(waves_df$hours),
+                 fill = alpha(yellow, .75)) +
+        annotate(geom = "rect", ymin = 0, ymax = wave_mid,
+                 xmin = min(waves_df$hours), xmax = max(waves_df$hours),
+                 fill = alpha(green, .75)) +
+        geom_step(size = 1) +
+        scale_y_continuous(limits = c(0, m)) +
+        scale_x_datetime(labels = function(x) format.Date(x, "%a,\n%b %d"),
+                         expand = c(0,0)) +
+        theme_minimal() +
+        theme(text = element_text(family = "m", size = 20),
+              panel.grid.minor = element_blank(),
+              panel.grid.major.x = element_blank(),
+              plot.title.position = "plot",
+              plot.margin = margin(t = 20, b = 0)) +
+        labs(x = "", y = "", 
+             title = "Wave Height")
+    })
+    
+    output$detailsWind <- renderPlot({
+      wind_df <- expand_period(wind)
+      wind_max <- input$wind
+      wind_mid <- wind_max * .6
+      m <- max(wind_df$value) + 1
+      
+      wind_df %>%
+        ggplot(aes(ymd_hms(hours), value,)) +
+        annotate(geom = "rect", ymin = wind_max, ymax = m,
+                 xmin = min(wind_df$hours), xmax = max(wind_df$hours),
+                 fill = alpha(red, .75)) +
+        annotate(geom = "rect", ymin = wind_mid, ymax = wind_max,
+                 xmin = min(wind_df$hours), xmax = max(wind_df$hours),
+                 fill = alpha(yellow, .75)) +
+        annotate(geom = "rect", ymin = 0, ymax = wind_mid,
+                 xmin = min(wind_df$hours), xmax = max(wind_df$hours),
+                 fill = alpha(green, .75)) +
+        geom_step(size = 1) +
+        scale_y_continuous(limits = c(0, m)) +
+        scale_x_datetime(labels = function(x) format.Date(x, "%a,\n%b %d"),
+                         expand = c(0,0)) +
+        theme_minimal() +
+        theme(text = element_text(family = "m", size = 20),
+              panel.grid.minor = element_blank(),
+              panel.grid.major.x = element_blank(),
+              plot.title.position = "plot",
+              plot.margin = margin(t = 0)) +
+        labs(x = "", y = "", 
+             title = "Wind Speed")
+    })
+    
   }
   
 }
