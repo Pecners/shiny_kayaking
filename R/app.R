@@ -40,6 +40,9 @@ ui <- fluidPage(
     
     # Sidebar panel for inputs ----
     sidebarPanel(
+      # Width of panel out of 12, default is 4
+      width = 3,
+      
       # Input: Slider for the number of bins ----
       sliderInput(inputId = "waves", 
                   label = "Set your wave height limit (ft):",
@@ -64,7 +67,6 @@ ui <- fluidPage(
       h3("Good conditions", style='background:#2dc937;color:white;text-align:center;padding:5px;'),
       h3("Okay conditions", style='background:#efb700;color:white;text-align:center;padding:5px;'),
       h3("Bad conditions", style='background:#CC3232;color:white;text-align:center;padding:5px;'),
-      
       
     ),
     
@@ -109,11 +111,8 @@ server <- function(input, output) {
     temp <- x$properties$temperature$values %>%
       mutate(value = value * 1.8 + 32)
     
-    wind <- x$properties$temperature$values %>%
-      mutate(value / 1.609)
-    
-    waves_df <- expand_period(waves)
-    wind_df <- expand_period(wind)
+    wind <- x$properties$windSpeed$values %>%
+      mutate(value = value / 1.609)
     
     
     green <- "#2dc937"
@@ -142,7 +141,9 @@ server <- function(input, output) {
                gonogo = case_when(wind_score == 2 ~ red,
                                   wave_score == 2 ~ red,
                                   wind_score == 0 ~ green,
-                                  TRUE ~ yellow))
+                                  TRUE ~ yellow)) %>%
+        filter(!is.na(wind) & !is.na(wave))
+      
       both %>%
         ggplot(aes(date(hours), hour(hours), fill = gonogo)) +
         geom_tile(color = "white") +
@@ -153,7 +154,7 @@ server <- function(input, output) {
         scale_x_date(date_breaks = "days", 
                      labels = function(x) format.Date(x, "%a,\n%b %d")) +
         theme_minimal() +
-        theme(text = element_text(family = "m", size = 20),
+        theme(text = element_text(family = "m", size = 16),
               panel.grid.minor = element_blank(),
               panel.grid.major.x = element_blank(),
               plot.title.position = "plot",
@@ -186,25 +187,26 @@ server <- function(input, output) {
         scale_x_datetime(labels = function(x) format.Date(x, "%a,\n%b %d"),
                          expand = c(0,0)) +
         theme_minimal() +
-        theme(text = element_text(family = "m", size = 20),
+        theme(text = element_text(family = "m", size = 16),
               panel.grid.minor = element_blank(),
               panel.grid.major.x = element_blank(),
               plot.title.position = "plot",
               plot.margin = margin(t = 20, b = 0)) +
         labs(x = "", y = "", 
-             title = "Wave Height")
+             title = "Wave Height (ft)")
     })
     
     output$detailsWind <- renderPlot({
       wind_df <- expand_period(wind)
       wind_max <- input$wind
       wind_mid <- wind_max * .6
-      m <- max(wind_df$value) + 1
+      m <- max(wind_df$value, na.rm = TRUE) + 1
       
       wind_df %>%
-        ggplot(aes(ymd_hms(hours), value,)) +
+        ggplot(aes(hours, value)) +
         annotate(geom = "rect", ymin = wind_max, ymax = m,
-                 xmin = min(wind_df$hours), xmax = max(wind_df$hours),
+                 xmin = min(wind_df$hours, na.rm = TRUE), 
+                 xmax = max(wind_df$hours, na.rm = TRUE),
                  fill = alpha(red, .75)) +
         annotate(geom = "rect", ymin = wind_mid, ymax = wind_max,
                  xmin = min(wind_df$hours), xmax = max(wind_df$hours),
@@ -217,13 +219,13 @@ server <- function(input, output) {
         scale_x_datetime(labels = function(x) format.Date(x, "%a,\n%b %d"),
                          expand = c(0,0)) +
         theme_minimal() +
-        theme(text = element_text(family = "m", size = 20),
+        theme(text = element_text(family = "m", size = 16),
               panel.grid.minor = element_blank(),
               panel.grid.major.x = element_blank(),
               plot.title.position = "plot",
               plot.margin = margin(t = 0)) +
         labs(x = "", y = "", 
-             title = "Wind Speed")
+             title = "Wind Speed (mph)")
     })
     
   }

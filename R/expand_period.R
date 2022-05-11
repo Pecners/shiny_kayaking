@@ -17,9 +17,12 @@ expand_period <- function(df) {
     p_full <- p_days * 24 + p_hours
     
     start_time <- ymd_hms(str_sub(t$validTime, start = 1, end = 25),
-                          tz = "America/Chicago", quiet = TRUE)
+                          tz = "America/Chicago", quiet = TRUE) 
     
-    hours <- seq.POSIXt(from = start_time, length.out = p_full, by = 60*60)
+    hours <- seq.POSIXt(from = start_time, length.out = p_full, by = 60*60) %>%
+      format_ISO8601(.)
+    
+    #cat(paste0(i, ": ", ymd_hms(hours)), "\n")
     
     return(
       tibble(
