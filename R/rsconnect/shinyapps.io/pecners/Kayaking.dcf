@@ -5,9 +5,9 @@ account: pecners
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 6236159
-bundleId: 5893342
+bundleId: 5904904
 url: https://pecners.shinyapps.io/Kayaking/
-when: 1652235214.46899
-lastSyncTime: 1652235214.46901
+when: 1652493880.44502
+lastSyncTime: 1652493880.44504
 asMultiple: FALSE
 asStatic: FALSE
