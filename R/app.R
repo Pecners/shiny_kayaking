@@ -106,10 +106,12 @@ server <- function(input, output) {
   
   if (req$status_code != 200) {
     x <- read_rds("data.rda")
+    resp <- prettify(rawToChar(req$content)) %>%
+      fromJSON()
     
     output$error <- renderText({
       paste("Oops, there was an error! Showing old data.<br><br><strong>Error details</strong>: ",
-             x$detail)
+            resp$detail)
     })
     
   } else {
