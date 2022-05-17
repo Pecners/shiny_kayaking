@@ -7,6 +7,7 @@ library(glue)
 library(showtext)
 library(leaflet)
 library(sf)
+library(rdrop2)
 source("expand_period.R")
 
 # Define UI for app that draws a histogram ----
@@ -103,9 +104,10 @@ server <- function(input, output) {
     fromJSON()
   
   # Handle errors
-  
+  drop_auth(rdstoken = "droptoken.rds")
   if (req$status_code != 200) {
-    x <- read_rds("data.rda")
+    drop_download("data.rda", local_path = "d.rda", overwrite = TRUE)
+    x <- read_rds("d.rda")
     resp <- prettify(rawToChar(req$content)) %>%
       fromJSON()
     
@@ -113,9 +115,11 @@ server <- function(input, output) {
       paste("Oops, there was an error! Showing old data.<br><br><strong>Error details</strong>: ",
             resp$detail)
     })
-    
+  
+  # On good response, update cache
   } else {
-    saveRDS(x, "data.rda")
+    saveRDS(x, "d.rda")
+    drop_upload("d.rda", path = "data.rda", autorename = FALSE)
   }
   waves <- x$properties$waveHeight$values %>%
     mutate(value = value * 3.281)
