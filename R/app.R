@@ -108,7 +108,7 @@ server <- function(input, output) {
   # Handle errors
   
   if (req$status_code != 200) {
-    drop_download("d.rda", local_path = "d.rda", overwrite = TRUE)
+    #drop_download("d.rda", local_path = "d.rda", overwrite = TRUE)
     x <- read_rds("d.rda")
     resp <- prettify(rawToChar(req$content)) %>%
       fromJSON()
@@ -121,7 +121,7 @@ server <- function(input, output) {
   # On good response, update cache
   } else {
     saveRDS(x, "d.rda")
-    drop_upload("d.rda", dtoken = token)
+    #drop_upload("d.rda", dtoken = token)
   }
   waves <- x$properties$waveHeight$values %>%
     mutate(value = value * 3.281)
